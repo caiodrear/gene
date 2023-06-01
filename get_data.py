@@ -43,13 +43,16 @@ def download_data():
 
     data = data.dropna(subset=['team_h_score']).merge(  # drop unplayed matches
         player_positions, on='element').sort_values(
-        ['element', 'kickoff_time'])
+        ['element', 'kickoff_time']).sort_values('kickoff_time')
 
     data['time_diffs'] = (
         data.groupby('element')['kickoff_time'].diff().dt.total_seconds()/3600
         ).fillna(0)
 
     data.to_csv('data/data.csv', index=False)
+
+
+download_data()
 
 
 # test-train split-------------------------------------------------------------

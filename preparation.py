@@ -1,6 +1,8 @@
 # imports----------------------------------------------------------------------
 import pandas as pd
 import numpy as np
+import random
+from sklearn.preprocessing import MinMaxScaler
 from tqdm.notebook import tqdm
 
 # add team performance---------------------------------------------------------
@@ -42,38 +44,83 @@ def add_team_performance(data, window_size=38):
         xG_cumulative.drop_duplicates('fixture', keep='last'),
         on='fixture', suffixes=['_h', '_a']), on='fixture')
 
-# data windowing---------------------------------------------------------------
+
+# data windowing and train, test, valdiation splitting-------------------------
 
 
-def get_window_arrays(data, window_size=3):
+def window_split(data, window_size=3, tvt_size=[0.7, 0.2, 0.1]):
 
-    batches = []
-    for player in tqdm(data['element'].unique(), desc='creating frames'):
+    windows = [[
+        player_indices[n:n + window_size], player_indices[n + window_size]]
+        for player_indices in [
+            data[data['element'] == player].index
+            for player in data['element'].unique()]
+        for n in range(len(player_indices) - window_size)]
 
-        player_data = data[
-            data['element'] == player].drop('element', axis=1).reset_index(
-            drop=True).copy()
+    random.shuffle(windows)
 
-        frame_generator = player_data.drop(
-            player_data.tail(1).index).rolling(window=window_size)
+    tvt_size = np.floor(np.cumsum(
+        np.array(tvt_size) * len(windows))).astype('int')
 
-        for window in frame_generator:
+    print(tvt_size)
 
-            if len(window) >= window_size:
+    train_indices = windows[:tvt_size[0]]
+    validation_indices = windows[tvt_size[0]:tvt_size[1]]
+    test_indices = windows[tvt_size[1]:]
 
-                points_index = window.index[-1]
+    return [train_indices, validation_indices, test_indices]
 
-                match_data = np.array(player_data[[
-                    'was_home', 'team_a_difficulty',
-                    'team_h_difficulty', 'time_diffs']].loc[points_index + 1])
 
-                target_data = player_data['total_points'].loc[points_index + 1]
+# data scaling-----------------------------------------------------------------
 
-                batch = {
-                    'player_data': np.array(window, float),
-                    'match_data': match_data,
-                    'target_data': target_data}
 
-                batches.append(batch)
+def scale_data(data, split_indices):
+
+    train_data = data.loc[
+        list(set(index for window in split_indices[0] for index in window[0]))]
+
+    no_scaling = [
+        'was_home', 'clean_sheets', 'yellow_cards', 'red_cards', 'starts']
+
+    min_max_vars = [
+        'minutes', 'bonus', 'goals_conceded', 'own_goals', 'bps', 'influence',
+        'creativity', 'threat', 'ict_index', 'value', 'transfers_balance',
+        'selected', 'transfers_in', 'transfers_out', 'expected_goals_conceded',
+        'total_points', 'team_a_difficulty', 'team_h_difficulty',
+        'xG_h', 'xGA_h', 'xG_a', 'xGA_a', 'time_diffs']
+
+    out_metrics = [
+        'penalties_missed', 'goals_scored', 'assists', 'expected_goals',
+        'expected_assists', 'expected_goal_involvements']
+
+    # gkp_metrics = ['penalties_saved', 'saves']
+
+    scaler = MinMaxScaler().set_output(transform='pandas')
+    scaler.fit(train_data[min_max_vars + out_metrics])
+
+    return data[no_scaling].join(
+        scaler.transform(data[min_max_vars + out_metrics]))
+
+# data wrangling---------------------------------------------------------------
+
+
+def wrangle_data(data, data_indices):
+
+    batches = {'player_data': [], 'match_data': [], 'target_data': []}
+
+    for window_indices in tqdm(data_indices):
+
+        batches['player_data'].append(
+            np.array(data.loc[window_indices[0]], float))
+
+        batches['match_data'].append(np.array(data[[
+            'was_home', 'team_a_difficulty',
+            'team_h_difficulty', 'time_diffs']].loc[window_indices[1]], float))
+
+        batches['target_data'].append(
+            np.array(data['total_points'].loc[window_indices[1]]))
+
+    for component in batches:
+        batches[component] = np.array(batches[component])
 
     return batches

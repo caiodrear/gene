@@ -47,12 +47,14 @@ class GeneData:
 
         xG_cumulative = xG_cumulative[['fixture']].join(
             xG_cumulative.sort_values('fixture').groupby(
-                'team').shift(1)[['xG', 'xGA']]).dropna(how='any')
+                'team').shift(1)[['xG', 'xGA']]).fillna(0)
 
-        self.data = self.data.merge(xG_cumulative.drop_duplicates(
-            'fixture').merge(xG_cumulative.drop_duplicates(
-                'fixture', keep='last'),
-                on='fixture', suffixes=['_h', '_a']), on='fixture')
+        xG_cumulative = xG_cumulative.drop_duplicates('fixture').merge(
+            xG_cumulative.drop_duplicates('fixture', keep='last'),
+            on='fixture', suffixes=['_h', '_a'])
+
+        self.data = self.data.merge(
+            xG_cumulative, on='fixture', how='left')
 
     # filter data for player positions----------------------------------------
     def position_filter(self, position):
@@ -60,7 +62,7 @@ class GeneData:
         self.position = position
 
         self.data = self.data[(
-            self.data['position'] == 'MID')].drop('position', axis=1)
+            self.data['position'] == position)].drop('position', axis=1)
 
         self.data.drop([
             'fixture', 'opponent_team', 'kickoff_time', 'round',
@@ -110,7 +112,13 @@ class GeneData:
                 'assists', 'expected_assists', 'expected_goal_involvements']
 
         scaler = MinMaxScaler().set_output(transform='pandas')
+        target_scaler = MinMaxScaler()
+
         scaler.fit(train_data[min_max_vars + player_metrics])
+        target_scaler.fit(train_data[['total_points']])
+
+        self.scaler = scaler
+        self.target_scaler = target_scaler
 
         self.data = self.data[no_scaling].join(
             scaler.transform(self.data[min_max_vars + player_metrics]))
@@ -132,7 +140,7 @@ class GeneData:
                     'time_diffs']].loc[window_indices[1]], float))
 
                 batches['target_data'].append(
-                    np.array(self.data['total_points'].loc[window_indices[1]]))
+                    np.array(self.data['assists'].loc[window_indices[1]]))
 
             for component in batches:
                 batches[component] = np.array(batches[component])

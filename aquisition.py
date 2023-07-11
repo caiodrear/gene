@@ -103,7 +103,7 @@ def process_data(season='22-23'):
         data['was_home'] * data['team_h'] +
         (1-data['was_home']) * data['team_a'])
 
-    # add time features--------------------------------------------------------
+    # add time feature and 60 minutes flag-------------------------------------
 
     data['kickoff_time'] = pd.to_datetime(data['kickoff_time'])
 
@@ -113,6 +113,8 @@ def process_data(season='22-23'):
     data['time_diffs'] = (
         data[data['minutes'] > 0].groupby('element')['kickoff_time'].diff(
         ).dt.total_seconds()/3600).fillna(0)
+
+    data['60_minutes'] = data['minutes'] >= 60
 
     # save data----------------------------------------------------------------
 

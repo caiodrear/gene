@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import random
 from sklearn.preprocessing import MinMaxScaler
-from tqdm.notebook import tqdm
 
 # gene class-------------------------------------------------------------------
 
@@ -95,7 +94,8 @@ class GeneData:
             index for window in self.train_indices for index in window[0]))]
 
         no_scaling = [
-            'was_home', 'clean_sheets', 'yellow_cards', 'red_cards', 'starts']
+            'was_home', 'clean_sheets', 'yellow_cards', 'red_cards', 'starts',
+            '60_minutes']
 
         min_max_vars = [
             'time_diffs', 'minutes', 'bonus', 'goals_conceded', 'own_goals',
@@ -130,7 +130,7 @@ class GeneData:
 
             batches = {'player_data': [], 'match_data': [], 'target_data': []}
 
-            for window_indices in tqdm(data_indices):
+            for window_indices in data_indices:
 
                 batches['player_data'].append(
                     np.array(self.data.loc[window_indices[0]], float))
@@ -139,12 +139,13 @@ class GeneData:
                     'was_home', 'team_a_difficulty', 'team_h_difficulty',
                     'time_diffs']].loc[window_indices[1]], float))
 
-                batches['target_data'].append(
-                    np.array(self.data['assists'].loc[window_indices[1]]))
+                batches['target_data'].append(np.array(
+                    self.data['60_minutes'].loc[window_indices[1]]))
 
             for component in batches:
                 batches[component] = np.array(batches[component])
 
+            print('batch size:', len(data_indices))
             return batches
 
         self.train_data = get_batches(self.train_indices)

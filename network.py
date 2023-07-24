@@ -22,14 +22,11 @@ class GeneModel:
         # player data model----------------------------------------------------
         win_input = Input(shape=gene_data.train_data['player_data'].shape[1:3])
 
-        dense_1 = Dense(64, activation="relu")(win_input)
-        dense_2 = Dense(128, activation="relu")(dense_1)
-        dense_3 = Dense(32, activation="relu")(dense_2)
-        dense_4 = Dense(16, activation="relu")(dense_3)
-
         conv_1 = Conv1D(
-            filters=16, kernel_size=3, activation='relu')(dense_4)
-        # pool_1 = MaxPooling1D(pool_size=2)(conv_1)
+            filters=128, kernel_size=2, activation='relu')(win_input)
+        pool_1 = MaxPooling1D(pool_size=4)(conv_1)
+
+        dense = Dense(64, activation="relu")(pool_1)
 
         # dropout = Dropout(0.0001)(pool_1)
 
@@ -37,25 +34,25 @@ class GeneModel:
         #     filters=16, kernel_size=1, activation='relu')(dropout)
         # pool_2 = MaxPooling1D(pool_size=1)(conv_2)
 
-        flat = Flatten()(conv_1)
-        dense = Dense(10, activation='relu')(flat)
+        # flat = Flatten()(conv_1)
+        # dense = Dense(10, activation='relu')(flat)
 
         win_output = dense
 
         # model compilation----------------------------------------------------
 
-        concat = concatenate(
-            [tab_output, win_output], name='concatenated_layer')
+        # concat = concatenate(
+        #     [tab_output, win_output], name='concatenated_layer')
 
         output = Dense(
-            1, activation='sigmoid', name='output_layer')(concat)
+            1, activation='linear', name='output_layer')(win_output)
 
         inputs = [tab_input, win_input]
 
-        model = Model(inputs=inputs, outputs=[output])
+        model = Model(inputs=[win_input], outputs=[output])
         model.compile(
-            loss='binary_crossentropy', optimizer='adam',
-            metrics=['accuracy'])
+            loss='mse', optimizer='adam',
+            )
 
         self.model = model
 
@@ -65,8 +62,14 @@ class GeneModel:
             self.gene_data.train_data['match_data'],
             self.gene_data.train_data['player_data']]
 
+        train_data = self.gene_data.train_data['player_data']
+
         validation_data = ([
             self.gene_data.validation_data['match_data'],
+            self.gene_data.validation_data['player_data']],
+                self.gene_data.validation_data['target_data'])
+
+        validation_data = ([
             self.gene_data.validation_data['player_data']],
                 self.gene_data.validation_data['target_data'])
 

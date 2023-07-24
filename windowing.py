@@ -140,7 +140,7 @@ class GeneData:
                     'time_diffs']].loc[window_indices[1]], float))
 
                 batches['target_data'].append(np.array(
-                    self.data['60_minutes'].loc[window_indices[1]]))
+                    self.data['total_points'].loc[window_indices[1]]))
 
             for component in batches:
                 batches[component] = np.array(batches[component])

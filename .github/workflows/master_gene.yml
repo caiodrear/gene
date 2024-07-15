@@ -9,8 +9,7 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
-    env: prod
+    environment: prod
 
     steps:
     - uses: actions/checkout@v2
